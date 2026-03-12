@@ -1,0 +1,19 @@
+<h2>Select Frame</h2>
+
+<img src="assets/frame1.png" width="200" onclick="select('frame1.png')">
+
+<script>
+
+function select(frame){
+
+fetch("/select_frame",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({frame:frame})
+})
+
+location.href="capture.html"
+
+}
+
+</script>

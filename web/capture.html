@@ -1,0 +1,27 @@
+<h2>Starting photo session...</h2>
+
+<img src="/preview" width="100%">
+
+<h1 id="count"></h1>
+
+<script>
+
+let c = 3
+
+let start = setInterval(()=>{
+
+document.getElementById("count").innerText=c
+
+c--
+
+if(c<0){
+
+clearInterval(start)
+
+fetch("/start_capture")
+
+}
+
+},1000)
+
+</script>
