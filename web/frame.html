@@ -21,18 +21,29 @@ height:100vh;
 }
 
 h1{
-font-size:42px;
+font-size:50px;
 margin-bottom:60px;
 }
 
 .frames{
+
 display:flex;
 gap:80px;
+
 }
 
 .frame{
-width:220px;
+
+width:260px;
 cursor:pointer;
+transition:0.2s;
+
+}
+
+.frame:hover{
+
+transform:scale(1.08);
+
 }
 
 </style>
@@ -57,45 +68,22 @@ onclick="selectFrame('frame2.png')">
 
 <script>
 
-let selecting=false
-
 async function selectFrame(name){
 
-if(selecting) return
-selecting=true
+await fetch("/select_frame",{
 
-try{
-
-const res=await fetch("/select_frame",{
 method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
+headers:{ "Content-Type":"application/json" },
 body:JSON.stringify({frame:name})
+
 })
 
-const data=await res.json()
-
-if(data.ok){
-
 location.href="/capture"
-return
-
-}
-
-}catch(err){
-
-console.log("network issue")
-
-}
-
-setTimeout(()=>{
-location.href="/capture"
-},2000)
 
 }
 
 </script>
 
 </body>
+
 </html>
