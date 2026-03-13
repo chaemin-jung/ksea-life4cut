@@ -3,49 +3,36 @@
 
 <head>
 
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
 
 <style>
 
 body{
 margin:0;
 background:#ECECEC;
-font-family:Inter, Arial;
-}
-
-.header{
+font-family:Poppins;
 display:flex;
-justify-content:space-between;
-padding:40px;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+height:100vh;
 }
 
-.title{
-font-size:40px;
-font-weight:700;
-}
-
-.subtitle{
-font-size:24px;
-color:#666;
+h1{
+font-size:42px;
+margin-bottom:60px;
 }
 
 .frames{
 display:flex;
-justify-content:center;
 gap:80px;
-margin-top:120px;
 }
 
 .frame{
-background:white;
-padding:30px;
-border-radius:20px;
-cursor:pointer;
-box-shadow:0 10px 30px rgba(0,0,0,0.08);
-}
-
-.frame img{
 width:220px;
+cursor:pointer;
 }
 
 </style>
@@ -54,45 +41,57 @@ width:220px;
 
 <body>
 
-<div class="header">
-
-<div class="title">KSEA4CUTS</div>
-
-<div class="subtitle">
-Select Frame
-</div>
-
-</div>
+<h1>Select Frame</h1>
 
 <div class="frames">
 
-<div class="frame"
+<img src="/assets/frame1.png"
+class="frame"
 onclick="selectFrame('frame1.png')">
 
-<img src="/assets/frame1.png">
-
-</div>
-
-<div class="frame"
+<img src="/assets/frame2.png"
+class="frame"
 onclick="selectFrame('frame2.png')">
-
-<img src="/assets/frame2.png">
-
-</div>
 
 </div>
 
 <script>
 
-function selectFrame(frame){
+let selecting=false
 
-fetch("/select_frame",{
+async function selectFrame(name){
+
+if(selecting) return
+selecting=true
+
+try{
+
+const res=await fetch("/select_frame",{
 method:"POST",
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({frame:frame})
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({frame:name})
 })
 
-location.href="capture.html"
+const data=await res.json()
+
+if(data.ok){
+
+location.href="/capture"
+return
+
+}
+
+}catch(err){
+
+console.log("network issue")
+
+}
+
+setTimeout(()=>{
+location.href="/capture"
+},2000)
 
 }
 

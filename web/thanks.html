@@ -3,20 +3,17 @@
 
 <head>
 
-<meta name="viewport" content="width=device-width">
-
 <style>
 
 body{
-margin:0;
 background:black;
 color:white;
-font-family:Inter, Arial;
 display:flex;
+flex-direction:column;
 justify-content:center;
 align-items:center;
 height:100vh;
-text-align:center;
+font-family:Arial;
 }
 
 h1{
@@ -24,7 +21,7 @@ font-size:60px;
 }
 
 p{
-font-size:26px;
+font-size:28px;
 color:#ccc;
 }
 
@@ -34,13 +31,17 @@ color:#ccc;
 
 <body>
 
-<div>
-
 <h1>Thank You!</h1>
 
 <p>Your photos are printing...</p>
 
-</div>
+<script>
+
+setTimeout(()=>{
+location.href="/"
+},10000)
+
+</script>
 
 </body>
 </html>

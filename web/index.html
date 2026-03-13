@@ -3,18 +3,18 @@
 
 <head>
 
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
 <style>
 
 body{
-margin:0;
+font-family:Inter;
 background:#ECECEC;
-font-family:Inter, Arial;
 display:flex;
 justify-content:center;
 align-items:center;
 height:100vh;
+margin:0;
 }
 
 .container{
@@ -27,18 +27,14 @@ font-weight:800;
 margin-bottom:60px;
 }
 
-.start{
-font-size:28px;
-padding:25px 60px;
-background:black;
-color:white;
+button{
+font-size:26px;
+padding:22px 60px;
 border:none;
 border-radius:12px;
+background:black;
+color:white;
 cursor:pointer;
-}
-
-.start:hover{
-opacity:0.85;
 }
 
 </style>
@@ -49,12 +45,9 @@ opacity:0.85;
 
 <div class="container">
 
-<div class="title">
-KSEA4CUTS
-</div>
+<div class="title">KSEA4CUTS</div>
 
-<button class="start"
-onclick="location.href='frame.html'">
+<button onclick="location.href='/frame'">
 Start Photo Session
 </button>
 
