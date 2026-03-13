@@ -217,15 +217,17 @@ def compose():
 
     canvas = Image.new("RGB",(1200,1800),(255,255,255))
 
-    # 실제 프레임 슬롯 좌표
-    left_x = 190
+    # 실제 사진 영역
+    top = 220
+    bottom = 1220
+
+    photo_area_height = bottom - top
+
+    photo_h = photo_area_height // 4
+    photo_w = 320
+
+    left_x = 240
     right_x = 640
-
-    photo_w = 370
-    photo_h = 260
-
-    top = 210
-    gap = 60
 
     y = top
 
@@ -236,9 +238,8 @@ def compose():
         canvas.paste(fitted,(left_x,y))
         canvas.paste(fitted,(right_x,y))
 
-        y += photo_h + gap
+        y += photo_h
 
-    # 프레임 덮기
     canvas = Image.alpha_composite(canvas.convert("RGBA"), frame_overlay)
 
     out = OUTPUT_DIR / f"result_{datetime.now().timestamp()}.jpg"
