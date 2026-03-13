@@ -1,14 +1,94 @@
-<h2>Select Frame</h2>
+<!DOCTYPE html>
+<html>
 
-<img src="assets/frame1.png" width="200" onclick="select('frame1.png')">
+<head>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+body{
+margin:0;
+background:#ECECEC;
+font-family:Inter, Arial;
+}
+
+.header{
+display:flex;
+justify-content:space-between;
+padding:40px;
+}
+
+.title{
+font-size:40px;
+font-weight:700;
+}
+
+.subtitle{
+font-size:24px;
+color:#666;
+}
+
+.frames{
+display:flex;
+justify-content:center;
+gap:80px;
+margin-top:120px;
+}
+
+.frame{
+background:white;
+padding:30px;
+border-radius:20px;
+cursor:pointer;
+box-shadow:0 10px 30px rgba(0,0,0,0.08);
+}
+
+.frame img{
+width:220px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+
+<div class="title">KSEA4CUTS</div>
+
+<div class="subtitle">
+Select Frame
+</div>
+
+</div>
+
+<div class="frames">
+
+<div class="frame"
+onclick="selectFrame('frame1.png')">
+
+<img src="/assets/frame1.png">
+
+</div>
+
+<div class="frame"
+onclick="selectFrame('frame2.png')">
+
+<img src="/assets/frame2.png">
+
+</div>
+
+</div>
 
 <script>
 
-function select(frame){
+function selectFrame(frame){
 
 fetch("/select_frame",{
 method:"POST",
-headers:{"Content-Type":"application/json"},
+headers:{'Content-Type':'application/json'},
 body:JSON.stringify({frame:frame})
 })
 
@@ -17,3 +97,6 @@ location.href="capture.html"
 }
 
 </script>
+
+</body>
+</html>

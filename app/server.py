@@ -2,7 +2,6 @@ from flask import Flask, request, send_file, jsonify, Response
 import cv2
 import time
 import threading
-import numpy as np
 from pathlib import Path
 from PIL import Image
 from datetime import datetime
@@ -24,33 +23,6 @@ def fit(img, w, h):
     top = (new_h - h) // 2
 
     return img.crop((left, top, left + w, top + h))
-
-def find_photo_slots(frame_overlay):
-
-    import numpy as np
-
-    frame_np = np.array(frame_overlay)
-
-    gray = cv2.cvtColor(frame_np, cv2.COLOR_BGR2GRAY)
-
-    _, th = cv2.threshold(gray,240,255,cv2.THRESH_BINARY)
-
-    contours,_ = cv2.findContours(th,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
-
-    slots = []
-
-    for c in contours:
-
-        x,y,w,h = cv2.boundingRect(c)
-
-        if w*h < 20000:
-            continue
-
-        slots.append((x,y,w,h))
-
-    slots = sorted(slots, key=lambda b:(b[0],b[1]))
-
-    return slots
 
 
 # ------------------------
@@ -88,7 +60,10 @@ camera = cv2.VideoCapture(0)
 
 shots = []
 selected_frame = "frame1.png"
+
 capture_done = False
+countdown = 0
+current_shot = 0
 
 
 # ------------------------
@@ -136,19 +111,19 @@ def select_frame():
 
     return jsonify({"ok":True})
 
-@app.route("/capture_status")
-def capture_status():
-    global capture_done
-    return jsonify({"done": capture_done})
-
 
 # ------------------------
-# CAPTURE STATUS
+# STATUS API
 # ------------------------
 
-@app.route("/countdown")
-def get_countdown():
-    return jsonify({"count": countdown})
+@app.route("/status")
+def status():
+
+    return jsonify({
+        "shot": current_shot,
+        "countdown": countdown,
+        "done": capture_done
+    })
 
 
 # ------------------------
@@ -157,22 +132,18 @@ def get_countdown():
 
 def capture_sequence():
 
-    global shots, capture_done, countdown
+    global shots, capture_done, countdown, current_shot
 
     shots = []
-    selected_frame = "frame1.png"
     capture_done = False
-    countdown = 0
 
     for i in range(4):
 
-        print("Countdown 10 seconds")
+        current_shot = i + 1
 
         for t in range(10,0,-1):
 
             countdown = t
-            print(t)
-
             time.sleep(1)
 
         countdown = 0
@@ -190,6 +161,7 @@ def capture_sequence():
     compose()
 
     capture_done = True
+
 
 # ------------------------
 # START CAPTURE
@@ -217,17 +189,15 @@ def compose():
 
     canvas = Image.new("RGB",(1200,1800),(255,255,255))
 
-    # 실제 사진 영역
-    top = 220
-    bottom = 1220
+    # 사진 위치 (프레임 기준)
+    left_x = 200
+    right_x = 700
 
-    photo_area_height = bottom - top
+    photo_w = 300
+    photo_h = 250
 
-    photo_h = photo_area_height // 4
-    photo_w = 320
-
-    left_x = 240
-    right_x = 640
+    top = 200
+    gap = 40
 
     y = top
 
@@ -238,7 +208,7 @@ def compose():
         canvas.paste(fitted,(left_x,y))
         canvas.paste(fitted,(right_x,y))
 
-        y += photo_h
+        y += photo_h + gap
 
     canvas = Image.alpha_composite(canvas.convert("RGBA"), frame_overlay)
 
@@ -247,6 +217,7 @@ def compose():
     canvas.convert("RGB").save(out)
 
     print("Saved:", out)
+
 
 # ------------------------
 # RUN SERVER

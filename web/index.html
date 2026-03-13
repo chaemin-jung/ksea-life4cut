@@ -1,20 +1,64 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-<meta name="viewport" content="width=device-width">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
 <style>
-body{font-family:sans-serif;text-align:center}
-button{font-size:40px;padding:30px}
+
+body{
+margin:0;
+background:#ECECEC;
+font-family:Inter, Arial;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+}
+
+.container{
+text-align:center;
+}
+
+.title{
+font-size:64px;
+font-weight:800;
+margin-bottom:60px;
+}
+
+.start{
+font-size:28px;
+padding:25px 60px;
+background:black;
+color:white;
+border:none;
+border-radius:12px;
+cursor:pointer;
+}
+
+.start:hover{
+opacity:0.85;
+}
+
 </style>
+
 </head>
 
 <body>
 
-<h1>Life4Cut</h1>
+<div class="container">
 
-<button onclick="location.href='frame.html'">
-START
+<div class="title">
+KSEA4CUTS
+</div>
+
+<button class="start"
+onclick="location.href='frame.html'">
+Start Photo Session
 </button>
+
+</div>
 
 </body>
 </html>
