@@ -1,8 +1,20 @@
 <h2>Starting photo session...</h2>
 
+<div style="position:relative">
+
 <img src="/preview" width="100%">
 
-<h1 id="count"></h1>
+<h1 id="count" style="
+position:absolute;
+top:40%;
+left:50%;
+transform:translate(-50%,-50%);
+font-size:120px;
+color:white;
+text-shadow:0 0 20px black;
+"></h1>
+
+</div>
 
 <script>
 
@@ -10,18 +22,65 @@ let c = 3
 
 let start = setInterval(()=>{
 
-document.getElementById("count").innerText=c
+document.getElementById("count").innerText = c
 
 c--
 
-if(c<0){
+if(c < 0){
 
 clearInterval(start)
 
 fetch("/start_capture")
 
+watchCountdown()
+waitForFinish()
+
 }
 
 },1000)
+
+
+function watchCountdown(){
+
+setInterval(()=>{
+
+fetch("/countdown")
+.then(r=>r.json())
+.then(data=>{
+
+if(data.count > 0){
+
+document.getElementById("count").innerText = data.count
+
+}
+
+})
+
+},200)
+
+}
+
+
+function waitForFinish(){
+
+let check = setInterval(()=>{
+
+fetch("/capture_status")
+.then(r=>r.json())
+.then(data=>{
+
+if(data.done){
+
+clearInterval(check)
+
+window.location.href = "thanks.html"
+
+}
+
+})
+
+},1000)
+
+}
 
 </script>
