@@ -1,8 +1,3 @@
-좋아 — 바로 복붙해서 써도 되는 **깔끔한 GitHub README** 만들어줄게.
-(너 프로젝트: photobooth / life4cut 기준으로 맞춰서 작성함)
-
----
-
 # 📸 Life4Cut Photobooth
 
 A production-ready, offline photobooth system built with Python, OpenCV, and Flask.

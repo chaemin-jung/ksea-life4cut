@@ -36,7 +36,7 @@ def init_camera():
 
 init_camera()
 
-# ---------------- CAMERA LOOP (단 하나) ----------------
+# ---------------- CAMERA LOOP ----------------
 
 def camera_loop():
     global camera, latest_frame
@@ -145,7 +145,7 @@ def capture_sequence():
             time.sleep(0.1)
             continue
 
-        frame = latest_frame.copy()  # ⭐ 여기만 사용
+        frame = latest_frame.copy()
 
         path = OUTPUT_DIR / f"shot{i}.jpg"
         cv2.imwrite(str(path), frame)
@@ -184,7 +184,7 @@ def fit(img, w, h):
     img = img.resize((new_w, new_h), Image.LANCZOS)
 
     left = (new_w - w) // 2
-    top = int((new_h - h) * 0.35)  # 얼굴 위치 보정
+    top = int((new_h - h) * 0.35)
 
     return img.crop((left, top, left + w, top + h))
 
@@ -227,15 +227,36 @@ def compose():
     print("Saved:", out)
 
     try:
-        subprocess.run(["cancel", "-a"])  # 이전 출력 제거
-        subprocess.run(["lp", str(out)])
+        subprocess.run(["cancel", "-a"])
+        subprocess.run(["lp", str(out)])  # 기본 1장 출력 유지
     except Exception as e:
         print("Print failed:", e)
+
+# ---------------- 🔥 NEW: EXTRA PRINT (2장 단위) ----------------
+
+@app.route("/print_extra", methods=["POST"])
+def print_extra():
+    data = request.get_json()
+    copies = int(data.get("copies", 2))  # 기본 2장
+
+    files = sorted(OUTPUT_DIR.glob("result_*.jpg"), reverse=True)
+    if not files:
+        return jsonify({"ok": False, "error": "No image found"})
+
+    latest = files[0]
+
+    try:
+        for _ in range(copies):
+            subprocess.run(["lp", str(latest)])
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+    return jsonify({"ok": True})
 
 # ---------------- RUN ----------------
 
 if __name__ == "__main__":
 
-    threading.Thread(target=camera_loop, daemon=True).start()  # ⭐ 핵심
+    threading.Thread(target=camera_loop, daemon=True).start()
 
     app.run(host="0.0.0.0", port=5050, threaded=True)
