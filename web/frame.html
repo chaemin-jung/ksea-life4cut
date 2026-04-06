@@ -309,6 +309,7 @@ lastShot=n
 }
 
 if(data.done){
+clearInterval(window.polling)
 setTimeout(()=>{
 location.href="/thanks"
 },1500)

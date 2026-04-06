@@ -167,6 +167,8 @@ def start_capture():
     if capture_running:
         return jsonify({"ok": False})
 
+    capture_done = False
+
     capture_running = True
 
     threading.Thread(target=capture_sequence).start()
@@ -177,14 +179,10 @@ def start_capture():
 
 def fit(img, w, h):
     scale = max(w / img.width, h / img.height)
+    img = img.resize((int(img.width * scale), int(img.height * scale)))
 
-    new_w = int(img.width * scale)
-    new_h = int(img.height * scale)
-
-    img = img.resize((new_w, new_h), Image.LANCZOS)
-
-    left = (new_w - w) // 2
-    top = int((new_h - h) * 0.35)
+    left = (img.width - w) // 2
+    top = (img.height - h) // 2
 
     return img.crop((left, top, left + w, top + h))
 
@@ -193,20 +191,25 @@ def fit(img, w, h):
 def compose():
     frame_overlay = Image.open(ASSET_DIR / selected_frame).convert("RGBA")
 
+    # 🔥 핵심: frame 기준으로 canvas 생성
     canvas_w, canvas_h = frame_overlay.size
-    canvas = Image.new("RGB", (canvas_w, canvas_h), (255, 255, 255))
+    canvas = Image.new("RGBA", (canvas_w, canvas_h), (255, 255, 255, 255))
 
     images = [Image.open(p).convert("RGB") for p in shots]
 
+    # 🔥 slots (2246x3369 기준 그대로 사용)
     slots = [
-        (48, 50, 517, 348),
-        (636, 50, 517, 348),
-        (48, 420, 517, 348),
-        (636, 420, 517, 348),
-        (48, 790, 517, 349),
-        (636, 790, 517, 349),
-        (48, 1161, 517, 349),
-        (636, 1161, 517, 349),
+        (60, 66, 980, 665),
+        (1200, 66, 980, 665),
+
+        (60, 780, 980, 665),
+        (1200, 780, 980, 665),
+
+        (60, 1500, 980, 665),
+        (1200, 1500, 980, 665),
+
+        (60, 2220, 980, 665),
+        (1200, 2220, 980, 665),
     ]
 
     for i, img in enumerate(images):
@@ -219,7 +222,8 @@ def compose():
         canvas.paste(fitted_left, (lx, ly))
         canvas.paste(fitted_right, (rx, ry))
 
-    final_img = Image.alpha_composite(canvas.convert("RGBA"), frame_overlay)
+    # 🔥 이제 사이즈 동일 → 에러 없음
+    final_img = Image.alpha_composite(canvas, frame_overlay)
 
     out = OUTPUT_DIR / f"result_{datetime.now().timestamp()}.jpg"
     final_img.convert("RGB").save(out, quality=95)
@@ -228,7 +232,7 @@ def compose():
 
     try:
         subprocess.run(["cancel", "-a"])
-        subprocess.run(["lp", str(out)])  # 기본 1장 출력 유지
+        subprocess.run(["lp", str(out)])
     except Exception as e:
         print("Print failed:", e)
 
