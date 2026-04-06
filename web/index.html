@@ -2,67 +2,56 @@
 <html>
 
 <head>
-
 <meta charset="UTF-8">
 
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
 
 <style>
-
 body{
 margin:0;
-height:100vh;
 background:#ECECEC;
+font-family:Poppins;
+
 display:flex;
+flex-direction:column;   /* ⭐ 핵심 (세로 정렬) */
 justify-content:center;
 align-items:center;
-font-family:Poppins;
+height:100vh;
 }
 
-.container{
-text-align:center;
-}
-
+/* 제목 */
 .title{
-font-size:72px;
+font-size:64px;
 font-weight:800;
-margin-bottom:60px;
+margin-bottom:40px;   /* ⭐ 버튼이랑 간격 */
 }
 
+/* 버튼 */
 button{
-
-font-size:32px;
-padding:25px 70px;
+font-size:28px;
+padding:20px 60px;
 border:none;
-border-radius:14px;
+border-radius:12px;
 background:black;
 color:white;
 cursor:pointer;
-
-transition:0.2s;
 }
-
-button:hover{
-
-transform:scale(1.05);
-
-}
-
 </style>
 
 </head>
 
 <body>
 
-<div class="container">
-
 <div class="title">KSEA4CUTS</div>
 
-<button onclick="location.href='/frame'">
-Start Photo Session
-</button>
+<button onclick="goFrame()">Start Photo Session</button>
 
-</div>
+<script>
+function goFrame(){
+  fetch("/stop_preview").catch(()=>{})
+  window.location.href="/frame"
+}
+</script>
 
 </body>
 

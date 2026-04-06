@@ -100,6 +100,13 @@ def thanks():
 def outputs(filename):
     return send_from_directory(str(OUTPUT_DIR), filename)
 
+@app.route("/stop_preview")
+def stop_preview():
+    global camera
+    if camera:
+        camera.release()
+    return "ok"
+
 # ---------------- FRAME SELECT ----------------
 
 @app.route('/select_frame', methods=["POST"])
