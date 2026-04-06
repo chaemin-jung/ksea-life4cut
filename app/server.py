@@ -55,6 +55,7 @@ def camera_loop():
             continue
 
         latest_frame = frame.copy()
+        time.sleep(0.01)
 
 # ---------------- STREAM ----------------
 
@@ -88,8 +89,8 @@ def index():
 def frame():
     return send_file("../web/frame.html")
 
-@app.route("/capture")
-def capture():
+#@app.route("/capture")
+#def capture():
     return send_file("../web/capture.html")
 
 @app.route("/thanks")
@@ -107,12 +108,39 @@ def stop_preview():
         camera.release()
     return "ok"
 
+@app.route('/reset')
+def reset():
+    global shots, countdown, shot_count, capture_done, capture_running
+
+    shots = []
+    countdown = 0
+    shot_count = 0
+    capture_done = False
+    capture_running = False
+
+    return "ok"
+
+copies = 2 
+@app.route("/set_copies", methods=["POST"])
+def set_copies():
+    global copies
+    data = request.get_json() or {}
+    copies = int(data.get("copies", 2))
+    return jsonify({"ok": True})
+
 # ---------------- FRAME SELECT ----------------
 
 @app.route('/select_frame', methods=["POST"])
 def select_frame():
-    global selected_frame
+    global selected_frame, shot_count, countdown, capture_done, capture_running
+
     selected_frame = request.json["frame"]
+
+    shot_count = 0
+    countdown = 0
+    capture_done = False
+    capture_running = False
+
     return jsonify({"ok": True})
 
 # ---------------- STATUS ----------------
@@ -130,51 +158,61 @@ def status():
 def capture_sequence():
     global shots, countdown, shot_count, capture_done, capture_running, latest_frame
 
-    shots = []
-    shot_count = 0
-    capture_done = False
-
-    for f in OUTPUT_DIR.glob("shot*.jpg"):
-        try:
-            f.unlink()
-        except:
-            pass
-
-    for i in range(4):
-
-        for t in range(10, 0, -1):
-            countdown = t
-            time.sleep(1)
-
+    try:
+        shots = []
+        shot_count = 0
         countdown = 0
+        capture_done = False
 
-        if latest_frame is None:
-            time.sleep(0.1)
-            continue
+        for f in OUTPUT_DIR.glob("shot*.jpg"):
+            try:
+                f.unlink()
+            except:
+                pass
 
-        frame = latest_frame.copy()
+        for i in range(4):
 
-        path = OUTPUT_DIR / f"shot{i}.jpg"
-        cv2.imwrite(str(path), frame)
+            for t in range(10, 0, -1):
+                countdown = t
+                time.sleep(1)
 
-        shots.append(path)
-        shot_count += 1
+            countdown = 0
 
-        time.sleep(0.5)
+            if latest_frame is None:
+                raise RuntimeError("Camera frame missing")
 
-    compose()
+            frame = latest_frame.copy()
 
-    capture_done = True
-    capture_running = False
+            path = OUTPUT_DIR / f"shot{i}.jpg"
+            ok = cv2.imwrite(str(path), frame)
+
+            if not ok:
+                raise RuntimeError("Failed to save image")
+
+            shots.append(path)
+            shot_count += 1
+
+            time.sleep(0.5)
+
+        compose()
+        capture_done = True
+
+    except Exception as e:
+        print("❌ Capture failed:", e)
+
+    finally:
+        countdown = 0
+        capture_running = False
 
 @app.route("/start_capture")
 def start_capture():
-    global capture_running
+    global capture_running, capture_done, shot_count
 
     if capture_running:
         return jsonify({"ok": False})
 
     capture_done = False
+    shot_count = 0
 
     capture_running = True
 
@@ -238,8 +276,10 @@ def compose():
     print("Saved:", out)
 
     try:
-        subprocess.run(["cancel", "-a"])
-        subprocess.run(["lp", str(out)])
+        for _ in range(copies):
+            threading.Thread(
+                target=lambda p=str(out): subprocess.run(["lp", p])
+            ).start()
     except Exception as e:
         print("Print failed:", e)
 

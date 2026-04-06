@@ -86,7 +86,7 @@ display:flex;
 justify-content:center;
 align-items:center;
 gap:40px;
-height:calc(100vh - 140px); /* header 제외 */
+height:calc(100vh - 140px);
 }
 
 .camera{
@@ -161,27 +161,14 @@ object-fit:cover;
 
 <body>
 
-<!-- -------- FRAME SELECT -------- -->
-
 <h1 id="title">Select Frame</h1>
 
 <div class="frames" id="frame-section">
 
-<img src="/assets/frame1.png"
-class="frame"
-onclick="selectFrame('frame1.png')">
-
-<img src="/assets/frame2.png"
-class="frame"
-onclick="selectFrame('frame2.png')">
-
-<img src="/assets/frame3.png"
-class="frame"
-onclick="selectFrame('frame3.png')">
-
-<img src="/assets/frame4.png"
-class="frame"
-onclick="selectFrame('frame4.png')">
+<img src="/assets/frame1.png" class="frame" onclick="selectFrame('frame1.png')">
+<img src="/assets/frame2.png" class="frame" onclick="selectFrame('frame2.png')">
+<img src="/assets/frame3.png" class="frame" onclick="selectFrame('frame3.png')">
+<img src="/assets/frame4.png" class="frame" onclick="selectFrame('frame4.png')">
 
 </div>
 
@@ -193,8 +180,6 @@ onclick="selectFrame('frame4.png')">
 <button onclick="selectCopies(6)">6 Copies</button>
 
 </div>
-
-<!-- -------- CAPTURE UI -------- -->
 
 <div id="capture-ui">
 
@@ -233,89 +218,113 @@ onclick="selectFrame('frame4.png')">
 <script>
 
 let lastShot = 0;
+let captureStarting = false;   // 🔥 버튼 연타 방지
 
 /* -------- FRAME -------- */
 
 async function selectFrame(name){
 
-await fetch("/select_frame",{
-method:"POST",
-headers:{ "Content-Type":"application/json" },
-body:JSON.stringify({frame:name})
-});
+    await fetch("/select_frame",{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({frame:name})
+    });
 
-document.getElementById("copy-select").style.display="block";
+    document.getElementById("copy-select").style.display="block";
 }
 
 /* -------- COPIES -------- */
 
 function selectCopies(n){
 
-fetch("/set_copies",{
-method:"POST",
-headers:{ "Content-Type":"application/json" },
-body:JSON.stringify({ copies:n })
-});
+    if(captureStarting) return;
+    captureStarting = true;
 
-startCapture();
+    // 🔥 버튼 비활성화
+    const buttons = document.querySelectorAll("#copy-select button");
+    buttons.forEach(btn => {
+        btn.disabled = true;
+        btn.style.opacity = "0.5";
+    });
+
+    fetch("/set_copies",{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({ copies:n })
+    });
+
+    startCapture();
 }
 
 /* -------- START CAPTURE -------- */
 
 function startCapture(){
 
-// UI 전환
-document.getElementById("frame-section").style.display="none";
-document.getElementById("copy-select").style.display="none";
-document.getElementById("title").style.display="none";
-document.getElementById("capture-ui").style.display="block";
+    lastShot = 0;
 
-// 시작
-setTimeout(()=>{
-document.getElementById("progress").innerText="1/4";
-fetch("/start_capture");
-},3000);
+    if(window.polling){
+        clearInterval(window.polling);
+    }
 
-// polling
-setInterval(update,200);
+    // 🔥 UI 초기화
+    document.getElementById("count").innerText = "";
+    document.getElementById("progress").innerText = "READY";
+    document.getElementById("s1").innerHTML = "";
+    document.getElementById("s2").innerHTML = "";
+    document.getElementById("s3").innerHTML = "";
+    document.getElementById("s4").innerHTML = "";
+
+    // UI 전환
+    document.getElementById("frame-section").style.display="none";
+    document.getElementById("copy-select").style.display="none";
+    document.getElementById("title").style.display="none";
+    document.getElementById("capture-ui").style.display="block";
+
+    // 시작
+    setTimeout(()=>{
+        document.getElementById("progress").innerText="1/4";
+        fetch("/start_capture");
+    },3000);
+
+    window.polling = setInterval(update,200);
 }
 
 /* -------- UPDATE -------- */
 
 function update(){
 
-fetch("/status")
-.then(r=>r.json())
-.then(data=>{
+    fetch("/status")
+    .then(r=>r.json())
+    .then(data=>{
 
-if(data.countdown>0)
-document.getElementById("count").innerText=data.countdown
-else
-document.getElementById("count").innerText=""
+        if(data.countdown>0)
+            document.getElementById("count").innerText=data.countdown
+        else
+            document.getElementById("count").innerText=""
 
-if(data.shot>lastShot){
+        if(data.shot>lastShot){
 
-let n=data.shot
+            let n=data.shot
 
-document.getElementById("s"+n).innerHTML=
-"<img src='/outputs/shot"+(n-1)+".jpg?"+Date.now()+"'>"
+            document.getElementById("s"+n).innerHTML=
+            "<img src='/outputs/shot"+(n-1)+".jpg?"+Date.now()+"'>"
 
-if(n<4)
-document.getElementById("progress").innerText=(n+1)+"/4"
-else
-document.getElementById("progress").innerText="4/4"
+            if(n<4)
+                document.getElementById("progress").innerText=(n+1)+"/4"
+            else
+                document.getElementById("progress").innerText="4/4"
 
-lastShot=n
-}
+            lastShot=n
+        }
 
-if(data.done){
-clearInterval(window.polling)
-setTimeout(()=>{
-location.href="/thanks"
-},1500)
-}
+        if(data.done){
+            clearInterval(window.polling)
+            setTimeout(()=>{
+                location.href="/thanks"
+            },1500)
+        }
 
-})
+    })
 }
 
 </script>
