@@ -48,6 +48,9 @@ cursor:pointer;
 
 <script>
 function goFrame(){
+  const btn = document.querySelector("button")
+  btn.disabled = true
+  
   fetch("/stop_preview").catch(()=>{})
   window.location.href="/frame"
 }
