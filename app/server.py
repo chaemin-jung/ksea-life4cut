@@ -7,6 +7,30 @@ from PIL import Image
 from datetime import datetime
 import subprocess
 
+from pathlib import Path
+import os
+
+import math
+
+latest_result = None
+
+BASE_DIR = Path(__file__).resolve().parent
+OUTPUT_DIR = BASE_DIR / "outputs"
+OUTPUT_DIR.mkdir(exist_ok=True)
+
+# 서버 시작 시 예전 결과물 삭제
+for f in OUTPUT_DIR.glob("*"):
+    if f.suffix.lower() in [".jpg", ".jpeg", ".png"]:
+        try:
+            f.unlink()
+        except:
+            pass
+
+try:
+    subprocess.run("cancel -a", shell=True)
+except:
+    pass
+
 app = Flask(__name__, static_folder="../web", static_url_path="")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -50,9 +74,11 @@ def camera_loop():
         success, frame = camera.read()
 
         if not success:
-            camera.release()
-            camera = None
             continue
+
+        # ⭐ 여기 추가 (핵심)
+        h, w, _ = frame.shape
+        frame = frame[:, int(w*0.125):int(w*0.875)]
 
         latest_frame = frame.copy()
         time.sleep(0.01)
@@ -221,16 +247,24 @@ def start_capture():
     return jsonify({"ok": True})
 
 # ---------------- IMAGE FIT ----------------
-
 def fit(img, w, h):
     scale = max(w / img.width, h / img.height)
-    img = img.resize((int(img.width * scale), int(img.height * scale)))
 
-    left = (img.width - w) // 2
-    top = (img.height - h) // 2
+    new_size = (
+        int(img.width * scale + 6),   # 🔥 +6으로 확장
+        int(img.height * scale + 6)
+    )
 
-    return img.crop((left, top, left + w, top + h))
+    img = img.resize(new_size)
 
+    # ⭐ 완전 중앙 정렬 (round 사용)
+    left = int(round((img.width - w) / 2))
+    top = int(round((img.height - h) / 2))
+
+    right = left + w
+    bottom = top + h
+
+    return img.crop((left, top, right, bottom))
 # ---------------- COMPOSE ----------------
 
 def compose():
@@ -242,19 +276,19 @@ def compose():
 
     images = [Image.open(p).convert("RGB") for p in shots]
 
-    # 🔥 slots (2246x3369 기준 그대로 사용)
     slots = [
-        (60, 66, 980, 665),
-        (1200, 66, 980, 665),
+        (28, 38, 1016, 696),
+        (1168, 38, 1016, 696),
 
-        (60, 780, 980, 665),
-        (1200, 780, 980, 665),
+        (28, 752, 1016, 696),
+        (1168, 752, 1016, 696),
 
-        (60, 1500, 980, 665),
-        (1200, 1500, 980, 665),
+        (28, 1472, 1016, 696),
+        (1168, 1472, 1016, 696),
 
-        (60, 2220, 980, 665),
-        (1200, 2220, 980, 665),
+        # 마지막 줄만 개별 보정
+        (26, 2190, 1020, 700),      # 왼쪽 맨 아래
+        (1168, 2192, 1016, 696),    # 오른쪽 맨 아래
     ]
 
     for i, img in enumerate(images):
@@ -270,16 +304,18 @@ def compose():
     # 🔥 이제 사이즈 동일 → 에러 없음
     final_img = Image.alpha_composite(canvas, frame_overlay)
 
+    global latest_result
+
     out = OUTPUT_DIR / f"result_{datetime.now().timestamp()}.jpg"
     final_img.convert("RGB").save(out, quality=95)
+
+    latest_result = out  # ⭐ 핵심
 
     print("Saved:", out)
 
     try:
-        for _ in range(copies):
-            threading.Thread(
-                target=lambda p=str(out): subprocess.run(["lp", p])
-            ).start()
+        for _ in range(copies // 2):   # ⭐ 여기 추가
+            subprocess.run(["lp", str(out)])
     except Exception as e:
         print("Print failed:", e)
 
@@ -287,18 +323,17 @@ def compose():
 
 @app.route("/print_extra", methods=["POST"])
 def print_extra():
-    data = request.get_json()
-    copies = int(data.get("copies", 2))  # 기본 2장
+    global latest_result
 
-    files = sorted(OUTPUT_DIR.glob("result_*.jpg"), reverse=True)
-    if not files:
+    data = request.get_json()
+    copies = int(data.get("copies", 2))
+
+    if latest_result is None:
         return jsonify({"ok": False, "error": "No image found"})
 
-    latest = files[0]
-
     try:
-        for _ in range(copies):
-            subprocess.run(["lp", str(latest)])
+        for _ in range(copies // 2):
+         subprocess.run(["lp", str(latest_result)])
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
 
