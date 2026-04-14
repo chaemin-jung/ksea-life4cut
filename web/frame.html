@@ -17,30 +17,36 @@ flex-direction:column;
 align-items:center;
 justify-content:center;
 height:100vh;
-overflow:hidden;
+overflow:auto;
 }
 
-/* -------- FRAME SELECT -------- */
+/* ---------- FRAME SELECT ---------- */
 
 h1{
-font-size:50px;
-margin-bottom:60px;
+font-size:42px;
+margin-bottom:40px;
 }
 
 .frames{
-display:flex;
-gap:80px;
+display:grid;
+grid-template-columns: repeat(5, 1fr);
+gap:24px;
+padding:0 20px;
+justify-items:center;
 }
 
 .frame{
-width:260px;
+width:225px;
+max-width:100%;
 cursor:pointer;
 transition:0.2s;
 }
 
 .frame:hover{
-transform:scale(1.08);
+transform:scale(1.05);
 }
+
+/* ---------- COPY SELECT ---------- */
 
 #copy-select{
 display:none;
@@ -49,15 +55,17 @@ text-align:center;
 }
 
 button{
-font-size:24px;
-padding:15px 30px;
+font-size:20px;
+padding:12px 24px;
 margin:10px;
 border:none;
 border-radius:10px;
 cursor:pointer;
+background:black;
+color:white;
 }
 
-/* -------- CAPTURE UI -------- */
+/* ---------- CAPTURE UI ---------- */
 
 #capture-ui{
 display:none;
@@ -68,16 +76,16 @@ height:100vh;
 .header{
 display:flex;
 justify-content:space-between;
-padding:40px 60px;
+padding:30px 60px;
 }
 
 .title{
-font-size:54px;
+font-size:48px;
 font-weight:800;
 }
 
 .subtitle{
-font-size:32px;
+font-size:28px;
 color:#777;
 }
 
@@ -86,7 +94,7 @@ display:flex;
 justify-content:center;
 align-items:center;
 gap:40px;
-height:calc(100vh - 140px);
+height:calc(100vh - 120px);
 }
 
 .camera{
@@ -95,9 +103,8 @@ padding:20px;
 border-radius:20px;
 position:relative;
 
-/* ⭐ 추가 */
-width:65vw;
-height:70vh;
+width:60vw;
+height:65vh;
 overflow:hidden;
 
 display:flex;
@@ -108,18 +115,7 @@ justify-content:center;
 #preview{
 width:100%;
 height:100%;
-object-fit:cover;   /* ⭐ 핵심 */
-border-radius:10px;
-}
-
-.flash{
-position:absolute;
-top:0;
-left:0;
-width:100%;
-height:100%;
-background:white;
-opacity:0;
+object-fit:cover;
 border-radius:10px;
 }
 
@@ -128,7 +124,7 @@ position:absolute;
 bottom:30px;
 left:50%;
 transform:translateX(-50%);
-font-size:10vh;
+font-size:9vh;
 font-weight:800;
 color:white;
 text-shadow:3px 3px 0 #000;
@@ -136,20 +132,20 @@ text-shadow:3px 3px 0 #000;
 
 .progress{
 text-align:center;
-font-size:72px;
+font-size:64px;
 margin-top:20px;
 }
 
 .side{
 display:flex;
 flex-direction:column;
-gap:20px;
+gap:15px;
 }
 
 .slot{
 width:120px;
 height:90px;
-border:4px solid black;
+border:3px solid black;
 background:white;
 }
 
@@ -168,12 +164,11 @@ object-fit:cover;
 <h1 id="title">Select Frame</h1>
 
 <div class="frames" id="frame-section">
-
 <img src="/assets/frame1.png" class="frame" onclick="selectFrame('frame1.png')">
 <img src="/assets/frame2.png" class="frame" onclick="selectFrame('frame2.png')">
 <img src="/assets/frame3.png" class="frame" onclick="selectFrame('frame3.png')">
 <img src="/assets/frame4.png" class="frame" onclick="selectFrame('frame4.png')">
-
+<img src="/assets/frame5.png" class="frame" onclick="selectFrame('frame5.png')">
 </div>
 
 <div id="copy-select">
@@ -182,7 +177,7 @@ object-fit:cover;
 <button onclick="selectCopies(2)">2 Copies</button>
 <button onclick="selectCopies(4)">4 Copies</button>
 <button onclick="selectCopies(6)">6 Copies</button>
-
+<button onclick="selectCopies(8)">8 Copies</button>
 </div>
 
 <div id="capture-ui">
@@ -198,7 +193,6 @@ object-fit:cover;
 
 <div class="camera">
 <img id="preview" src="/preview">
-<div id="flash" class="flash"></div>
 <div id="count" class="count"></div>
 </div>
 
@@ -217,17 +211,15 @@ object-fit:cover;
 
 </div>
 
-<audio id="shutter" src="/assets/shutter.mp3"></audio>
-
 <script>
 
 let lastShot = 0;
-let captureStarting = false;   // 🔥 버튼 연타 방지
+let captureStarting = false;
+let redirecting = false;
 
-/* -------- FRAME -------- */
+/* ---------- FRAME ---------- */
 
 async function selectFrame(name){
-
     await fetch("/select_frame",{
         method:"POST",
         headers:{ "Content-Type":"application/json" },
@@ -237,18 +229,16 @@ async function selectFrame(name){
     document.getElementById("copy-select").style.display="block";
 }
 
-/* -------- COPIES -------- */
+/* ---------- COPIES ---------- */
 
 function selectCopies(n){
 
     if(captureStarting) return;
     captureStarting = true;
 
-    // 🔥 버튼 비활성화
-    const buttons = document.querySelectorAll("#copy-select button");
-    buttons.forEach(btn => {
-        btn.disabled = true;
-        btn.style.opacity = "0.5";
+    document.querySelectorAll("#copy-select button").forEach(btn=>{
+        btn.disabled=true;
+        btn.style.opacity="0.4";
     });
 
     fetch("/set_copies",{
@@ -260,31 +250,25 @@ function selectCopies(n){
     startCapture();
 }
 
-/* -------- START CAPTURE -------- */
+/* ---------- START ---------- */
 
 function startCapture(){
 
     lastShot = 0;
+    redirecting = false;
 
-    if(window.polling){
-        clearInterval(window.polling);
-    }
+    document.getElementById("count").innerText="";
+    document.getElementById("progress").innerText="READY";
 
-    // 🔥 UI 초기화
-    document.getElementById("count").innerText = "";
-    document.getElementById("progress").innerText = "READY";
-    document.getElementById("s1").innerHTML = "";
-    document.getElementById("s2").innerHTML = "";
-    document.getElementById("s3").innerHTML = "";
-    document.getElementById("s4").innerHTML = "";
+    ["s1","s2","s3","s4"].forEach(id=>{
+        document.getElementById(id).innerHTML="";
+    });
 
-    // UI 전환
     document.getElementById("frame-section").style.display="none";
     document.getElementById("copy-select").style.display="none";
     document.getElementById("title").style.display="none";
     document.getElementById("capture-ui").style.display="block";
 
-    // 시작
     setTimeout(()=>{
         document.getElementById("progress").innerText="1/4";
         fetch("/start_capture");
@@ -293,7 +277,7 @@ function startCapture(){
     window.polling = setInterval(update,200);
 }
 
-/* -------- UPDATE -------- */
+/* ---------- UPDATE ---------- */
 
 function update(){
 
@@ -301,34 +285,37 @@ function update(){
     .then(r=>r.json())
     .then(data=>{
 
-        if(data.countdown>0)
-            document.getElementById("count").innerText=data.countdown
-        else
-            document.getElementById("count").innerText=""
+        document.getElementById("count").innerText =
+            data.countdown>0 ? data.countdown : "";
 
         if(data.shot>lastShot){
 
-            let n=data.shot
+            let n=data.shot;
 
-            document.getElementById("s"+n).innerHTML=
-            "<img src='/outputs/shot"+(n-1)+".jpg?"+Date.now()+"'>"
+            document.getElementById("s"+n).innerHTML =
+            `<img src="/outputs/shot_${data.session_id}_${n-1}.jpg?${Date.now()}">`;
 
-            if(n<4)
-                document.getElementById("progress").innerText=(n+1)+"/4"
-            else
-                document.getElementById("progress").innerText="4/4"
+            document.getElementById("progress").innerText =
+                n<4 ? (n+1)+"/4" : "4/4";
 
-            lastShot=n
+            lastShot=n;
         }
 
-        if(data.done){
-            clearInterval(window.polling)
+        /* 🔥 핵심: 타이밍 버그 완전 제거 */
+        if((data.done || data.shot>=4) && !redirecting){
+
+            redirecting=true;
+            clearInterval(window.polling);
+
+            console.log("➡️ THANKS 이동");
+
             setTimeout(()=>{
-                location.href="/thanks"
-            },1500)
+                window.location.href="/thanks";
+            },1500);
         }
 
     })
+    .catch(()=>{});
 }
 
 </script>
