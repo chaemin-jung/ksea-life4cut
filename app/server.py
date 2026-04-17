@@ -45,6 +45,8 @@ last_error = ""
 print_queue = queue.Queue()
 shutdown_event = threading.Event()
 
+last_print_time = 0 
+
 # ---------------- CONFIG ----------------
 
 CAMERA_INDEX = 0
@@ -88,7 +90,7 @@ def clear_error() -> None:
     with state_lock:
         last_error = ""
 
-def cleanup_old_temp_files(max_age_hours: int = 12) -> None:
+def cleanup_old_temp_files(max_age_hours: int = 3) -> None:
     now = time.time()
     for f in OUTPUT_DIR.glob("*"):
         if not f.is_file():
@@ -118,20 +120,15 @@ def safe_unlink(path: Path) -> None:
         pass
 
 def fit(img, w, h):
-    img_ratio = img.width / img.height
-    target_ratio = w / h
+    scale = max(w / img.width, h / img.height)  # 🔥 다시 max
 
-    if img_ratio > target_ratio:
-        new_height = h
-        new_width = round(h * img_ratio)
-    else:
-        new_width = w
-        new_height = round(w / img_ratio)
+    new_w = int(img.width * scale)
+    new_h = int(img.height * scale)
 
-    img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
-    left = (new_width - w) // 2
-    top = (new_height - h) // 2
+    left = (new_w - w) // 2
+    top = (new_h - h) // 2
 
     return img.crop((left, top, left + w, top + h))
 
@@ -219,9 +216,7 @@ def camera_loop():
             camera_ok = True
 
             h, w, _ = frame.shape
-            left = int(w * 0.125)
-            right = int(w * 0.875)
-            cropped = frame[:, left:right]
+            cropped = frame 
 
             latest_frame = cropped.copy()
             latest_frame_ts = time.time()
@@ -249,18 +244,22 @@ def printer_worker():
         path, copies_to_print = job
 
         try:
-            mapping = {
-                2: 4,
-                4: 6,
-                6: 8,
-                8: 10
-            }
+            subprocess.run(["cancel", "-a"], timeout=5)
+        except Exception:
+            pass
 
-            real_prints = mapping.get(copies_to_print, 4)
+        try:
+            real_prints = copies_to_print // 2
+
+            if real_prints <= 0:
+                continue
 
             for _ in range(real_prints):
+                subprocess.run(["cancel", "-a"], timeout=5)
+
+                # 🔥 핵심 수정 (fit-to-page 제거)
                 result = subprocess.run(
-                    ["lp", str(path)],
+                    ["lp", "-o", "media=4x6", "-o", "fit-to-page", "-o", "page-border=none", str(path)],
                     capture_output=True,
                     text=True,
                     timeout=30
@@ -270,6 +269,9 @@ def printer_worker():
                     set_error(f"Print failed: {result.stderr.strip()}")
                 else:
                     log(f"Printed: {path}")
+
+                time.sleep(1)
+
         except subprocess.TimeoutExpired:
             set_error("Print timeout")
         except Exception as e:
@@ -400,6 +402,12 @@ def status():
 
 @app.route("/print_extra", methods=["POST"])
 def print_extra():
+    global last_print_time
+
+    now = time.time()
+    if now - last_print_time < 3:   # ⭐ 2초 쿨타임
+        return jsonify({"ok": False, "error": "Too fast"}), 429
+
     global latest_result
     data = request.get_json(silent=True) or {}
     try:
@@ -410,7 +418,22 @@ def print_extra():
     if latest_result is None or not Path(latest_result).exists():
         return jsonify({"ok": False, "error": "No image found"}), 400
 
+    while not print_queue.empty():
+        try:
+            print_queue.get_nowait()
+            print_queue.task_done()
+        except:
+            break
+
+    if current_session_id is None or latest_result is None:
+        return jsonify({"ok": False, "error": "No active session"}), 400
+
+    # ⭐ 세션 ID 검증 (파일 이름 기반)
+    if str(current_session_id) not in str(latest_result):
+        return jsonify({"ok": False, "error": "Session mismatch"}), 403
+
     print_queue.put((Path(latest_result), extra_copies))
+    last_print_time = now
     return jsonify({"ok": True})
 
 # ---------------- CAPTURE ----------------
@@ -438,13 +461,17 @@ def compose(session_id: str, selected_frame_name: str, shot_paths: list[Path], c
         lx, ly, lw, lh = SLOTS[i * 2]
         rx, ry, rw, rh = SLOTS[i * 2 + 1]
 
-        left_img = fit(img, lw, lh)
-        right_img = fit(img, rw, rh)
+        bleed_x = 0
+        bleed_top = 0
 
-        canvas.paste(left_img, (lx, ly))
-        canvas.paste(right_img, (rx, ry))
+        left_img = fit(img, lw + bleed_x, lh + bleed_top)
+        right_img = fit(img, rw + bleed_x, rh + bleed_top)
+
+        canvas.paste(left_img, (lx, ly - bleed_top))
+        canvas.paste(right_img, (rx, ry - bleed_top))
 
     final_img = Image.alpha_composite(canvas, frame_overlay)
+
 
     out_path = OUTPUT_DIR / f"result_{session_id}.jpg"
     final_img.convert("RGB").save(out_path, quality=95)
@@ -452,11 +479,11 @@ def compose(session_id: str, selected_frame_name: str, shot_paths: list[Path], c
     latest_result = out_path
     log(f"Saved result: {out_path.name}")
 
-    print_queue.put((out_path, copy_count))
     return out_path
 
 def capture_sequence(session_id: str, frame_name: str, copy_count: int):
     global shots, countdown, shot_count, capture_done, capture_running, current_session_id
+    
 
     local_shots: list[Path] = []
 
@@ -473,8 +500,7 @@ def capture_sequence(session_id: str, frame_name: str, copy_count: int):
 
         for old_shot in OUTPUT_DIR.glob("shot_*.jpg"):
             try:
-                if time.time() - old_shot.stat().st_mtime > 6 * 3600:
-                    old_shot.unlink(missing_ok=True)
+                old_shot.unlink(missing_ok=True)
             except Exception:
                 pass
 
@@ -508,6 +534,15 @@ def capture_sequence(session_id: str, frame_name: str, copy_count: int):
             time.sleep(SHOT_DELAY_SECONDS)
 
         compose(session_id, frame_name, local_shots, copy_count)
+
+        while not print_queue.empty():
+            try:
+                print_queue.get_nowait()
+                print_queue.task_done()
+            except:
+                break
+
+        print_queue.put((Path(latest_result), copy_count))
 
         with state_lock:
             capture_done = True
@@ -544,8 +579,12 @@ def start_capture():
     return jsonify({"ok": True, "session_id": session_id})
 
 # ---------------- STARTUP ----------------
-
 def startup_cleanup():
+    global latest_result, current_session_id
+
+    latest_result = None
+    current_session_id = None
+
     cleanup_old_temp_files()
     clear_error()
 
@@ -554,12 +593,13 @@ def startup_cleanup():
     except Exception:
         pass
 
+
 if __name__ == "__main__":
+    print("🔥 SERVER STARTING")
     startup_cleanup()
 
     threading.Thread(target=camera_loop, daemon=True).start()
     threading.Thread(target=printer_worker, daemon=True).start()
 
-    # 현장용 로컬 키오스크면 이 정도로 충분하지만,
-    # 더 보수적으로 가려면 waitress/gunicorn 같은 WSGI로 교체 가능
     app.run(host="0.0.0.0", port=5050, threaded=True)
+
