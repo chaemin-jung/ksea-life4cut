@@ -145,6 +145,9 @@ def _create_camera():
 def init_camera(force: bool = False) -> bool:
     global camera, camera_ok, camera_fail_count
 
+    # 거울모드
+    frame = cv2.flip(frame, 1)
+
     with camera_lock:
         try:
             if force and camera is not None:
