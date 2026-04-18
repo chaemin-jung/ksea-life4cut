@@ -472,9 +472,20 @@ def compose(session_id: str, selected_frame_name: str, shot_paths: list[Path], c
 
     final_img = Image.alpha_composite(canvas, frame_overlay)
 
+    shrink_ratio = 0.96 
+    new_w = int(final_img.width * shrink_ratio)
+    new_h = int(final_img.height * shrink_ratio)
+    
+    resized_img = final_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
-    out_path = OUTPUT_DIR / f"result_{session_id}.jpg"
-    final_img.convert("RGB").save(out_path, quality=95)
+    bg_color = (255, 255, 255, 255) 
+    print_ready_img = Image.new("RGBA", final_img.size, bg_color)
+    
+    offset_x = (final_img.width - new_w) // 2
+    offset_y = (final_img.height - new_h) // 2
+    print_ready_img.paste(resized_img, (offset_x, offset_y))
+    
+    final_img = print_ready_img
 
     latest_result = out_path
     log(f"Saved result: {out_path.name}")
@@ -602,4 +613,3 @@ if __name__ == "__main__":
     threading.Thread(target=printer_worker, daemon=True).start()
 
     app.run(host="0.0.0.0", port=5050, threaded=True)
-
