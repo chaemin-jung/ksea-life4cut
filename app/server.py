@@ -472,7 +472,7 @@ def compose(session_id: str, selected_frame_name: str, shot_paths: list[Path], c
 
     final_img = Image.alpha_composite(canvas, frame_overlay)
 
-    shrink_ratio = 0.96 
+    shrink_ratio = 0.95 
     new_w = int(final_img.width * shrink_ratio)
     new_h = int(final_img.height * shrink_ratio)
     
@@ -486,6 +486,9 @@ def compose(session_id: str, selected_frame_name: str, shot_paths: list[Path], c
     print_ready_img.paste(resized_img, (offset_x, offset_y))
     
     final_img = print_ready_img
+
+    out_path = OUTPUT_DIR / f"result_{session_id}.jpg"
+    final_img.convert("RGB").save(out_path, quality=95)
 
     latest_result = out_path
     log(f"Saved result: {out_path.name}")
