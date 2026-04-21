@@ -120,7 +120,7 @@ def safe_unlink(path: Path) -> None:
         pass
 
 def fit(img, w, h):
-    scale = max(w / img.width, h / img.height)  # 🔥 다시 max
+    scale = max(w / img.width, h / img.height) * 1.03
 
     new_w = int(img.width * scale)
     new_h = int(img.height * scale)
@@ -146,7 +146,7 @@ def init_camera(force: bool = False) -> bool:
     global camera, camera_ok, camera_fail_count
 
     # 거울모드
-    frame = cv2.flip(frame, 1)
+    #frame = cv2.flip(frame, 1)
 
     with camera_lock:
         try:
@@ -258,9 +258,7 @@ def printer_worker():
                 continue
 
             for _ in range(real_prints):
-                subprocess.run(["cancel", "-a"], timeout=5)
-
-                # 🔥 핵심 수정 (fit-to-page 제거)
+                # 🔥 인쇄 명령 실행
                 result = subprocess.run(
                     ["lp", "-o", "media=4x6", "-o", "fit-to-page", "-o", "page-border=none", str(path)],
                     capture_output=True,
@@ -273,7 +271,7 @@ def printer_worker():
                 else:
                     log(f"Printed: {path}")
 
-                time.sleep(1)
+                time.sleep(2) # 🔥 안전하게 2초 대기
 
         except subprocess.TimeoutExpired:
             set_error("Print timeout")
@@ -481,11 +479,19 @@ def compose(session_id: str, selected_frame_name: str, shot_paths: list[Path], c
     
     resized_img = final_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
-    bg_color = (255, 255, 255, 255) 
+    # 🔥 프레임 색상을 스포이트처럼 뽑아내서 여백 배경색 자동 지정 (frame4.png 검은 여백 해결)
+    bg_color = final_img.getpixel((final_img.width - 10, 10))
     print_ready_img = Image.new("RGBA", final_img.size, bg_color)
-    
+
+    # 1️⃣ 먼저 기본 x, y 위치를 계산합니다.
     offset_x = (final_img.width - new_w) // 2
     offset_y = (final_img.height - new_h) // 2
+
+    # 2️⃣ 만약 frame3이라면, 프린터에 날짜가 안 잘리도록 y 위치를 위로 35 픽셀 끌어올립니다.
+    if "frame3" in selected_frame_name:
+        offset_y -= 35
+
+    # 3️⃣ 계산된 위치에 이미지를 합성합니다.
     print_ready_img.paste(resized_img, (offset_x, offset_y))
     
     final_img = print_ready_img
