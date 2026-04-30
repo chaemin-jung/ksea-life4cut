@@ -108,7 +108,7 @@ subprocess.run(["lp", file_path])
 
 ## 👤 Author
 
-Built by [Your Name]
+Built by Chaemin Jung
 
 ---
 
